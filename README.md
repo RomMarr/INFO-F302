@@ -21,3 +21,5 @@ Nous vous invitons à bien vous familiariser avec la notion d'automate avant de 
 Vous pouvez également spécifier le type de layout désiré pour les états de l'automate (c.f. les lignes 15-23 de utils.py).
 
 Lisez très attentivement les consignes de remise, et n'oubliez pas que le projet est à réaliser obligatoirement en trinômes.
+
+modificationnnn
