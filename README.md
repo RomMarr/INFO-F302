@@ -1,6 +1,9 @@
 # INFO-F302
 Projet du cours d'INFO-F302
 
+# Lien vers le rapport : 
+https://fr.overleaf.com/project/654259aa0da388f6149f9722
+
 Vous trouverez ici :
 - l'énoncé du projet
 - le squelette de code à remplir (project.py)
