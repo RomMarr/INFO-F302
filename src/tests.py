@@ -12,6 +12,7 @@ from automata.fa.nfa import NFA
 #                TESTS                 #
 ########################################
 
+
 def test_function(fct):
     @wraps(fct)
     def wrapper(*args, **kwargs):
