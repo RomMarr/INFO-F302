@@ -8,9 +8,19 @@ from automata.fa.nfa import NFA
 from pysat.solvers import Minisat22, Minicard
 from pysat.formula import CNF, CNFPlus, IDPool
 
+
+# Variables 
+vpool1 = IDPool(start_from=1) 
+vpool2 = IDPool(start_from=2) # ???????????
+cnf = CNF()  # construction d'un objet formule en forme normale conjonctive (Conjunctive Normal Form)
+
+
 # Q2
 def gen_aut(alphabet: str, pos: list[str], neg: list[str], k: int) -> DFA:
-    # À COMPLÉTER
+    # pos : P (ensemble des mots acceptant)
+    # neg : N (ensemble des mots non-acceptant)
+    
+    # Commence à P0
     pass
 
 # Q3
