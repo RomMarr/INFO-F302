@@ -8,7 +8,7 @@ from automata.fa.nfa import NFA
 from pysat.solvers import Minisat22, Minicard
 from pysat.formula import CNF, CNFPlus, IDPool
 
-X(i[0,k],a[0,1] -> a=1 appartient à F,l[lettre aplhabet],j[0,k])
+X(i[0,k],a[0,1] -> a=1 appartient à F,w [mots de pos union neg], lettres [alphabet])
 
 # Variables 
 vpool = IDPool(start_from=1) 
@@ -23,33 +23,44 @@ def gen_aut(alphabet: str, pos: list[str], neg: list[str], k: int) -> DFA:
     
     # Un etat ne peux pas être acceptant et non acceptant en même temps
     for etatI in range(k):
-        for lettre in alphabet:
-            for  etatF in range(k):
-                    cnf.append([-vpool.id(etatI,0,lettre,etatF), -vpool.id(etatI,1,lettre,etatF)])
+        for lettre1 in alphabet:
+            for mot1 in (pos + neg):
+                for lettre2 in alphabet:
+                    for mot2 in (pos+neg):
+                        cnf.append([-vpool.id(etatI,0, mot1,lettre1), -vpool.id(etatI, 1, mot2, lettre2)])
     
     # Commence à P0
     
     for a in range(2) :
         for mot in pos:
-            for etatF in range(k) :
-                cnf.append([vpool.id(0,a,mot[0],etatF)])
+                cnf.append([vpool.id(0, a, mot, mot[0])])
 
-    # Pas deux transitions possible
-        for etatI in range(k) :
-            for lettre in alphabet :
+    # Un mot ne peux pas être sur deux états différents à la même lettres
+    for etat1 in range(k) :
+        for etat2 in range(k):
+            for mot in (pos+neg) :
                 for a in range(2) :
-                    for etatF1 in range(k) :
-                        for etatF2 in range(k) :
-                            cnf.append(-[vpool.id(etatI,a,lettre,etatF1),-vpool.id(etatI,a,lettre,etatF2)])
+                    for i in range(len(mot)):
+                        cnf.append(-[vpool.id(etat1,a,mot, mot[i]),-vpool.id(etat2,a,mot,mot[i])])
 
-    # Tout mots de pos finit par un etat acceptant
-        for mot in pos :
-            for lettre in range(len(mot)-2):
-                for etatI1 in range(k) :
-                    for etatF in range(k) :
-                        for a in range(2) :
-                            for etatI2 in range(k) :
-                                cnf.append(-[vpool.id(etatI1,a,mot[lettre+1],etatF)], - [vpool.id(etatI2,a,mot[lettre],etatI)])
+    # Tout mots de pos finissent par un etat acceptant
+    for mot in pos :
+        d=[]
+        for etatI in range(k) :
+            d.append([vpool.id(etatI, 1 ,mot, mot[-1])])
+        cnf.append(d)
+
+    # Tout mots de neg finissent par un etat non-acceptant 'ou ne finisse pas'
+    for mot in neg :
+        d = []
+        for etatI in range(k) :
+            d.append([vpool.id(etatI, 0 ,mot, mot[-1])])
+        cnf.append(d)
+        
+    # La clause chaude
+
+    
+        
 
                     
                 
