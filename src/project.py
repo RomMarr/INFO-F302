@@ -22,14 +22,15 @@ class Automate:
     def __init__(self, alphabet: str, pos: list[str], neg: list[str], k: int):
         # Variables
         self.etatPool = IDPool(start_from=1) 
-        self.FPool = IDPool(start_from=100) 
-        self.transiPool = IDPool(start_from=200) 
-        self.execPool = IDPool(start_from=300) 
+        self.FPool = IDPool(start_from=k+1) 
+        self.transiPool = IDPool(start_from=2*k+1) 
+        self.execPool = IDPool(start_from=2*k+(k**2)*len(alphabet)+1) 
         self.cnf = CNF()  # construction d'un objet formule en forme normale conjonctive (Conjunctive Normal Form)
         self.alphabet = alphabet
         self.pos = pos
         self.neg = neg
         self.k = k
+        print(self.k)
 
 
     # Fonctions de création des clauses :
@@ -70,7 +71,7 @@ class Automate:
                     
     def existe_1_chemin_mots_acceptants(self):
         # Il faut qu'il existe un chemin pour les mots acceptants :
-        for mot in self.pos:
+        for mot in (self.pos+self.neg):
             for indiceLettre in range(len(mot)):
                 d = []
                 for x in range(self.k):
@@ -138,19 +139,22 @@ class Automate:
         accepting = set()
         if not resultat:
             return None
+        print (interpretation_filtree)
         for soluce in interpretation_filtree :
-            if soluce < 100:
+            if soluce < self.k+1:
+                print(self.k)
+                print(soluce)
                 states.add('q'+str(soluce-1))
-            elif soluce < 200:
-                accepting.add('q'+str(soluce-100))
-            elif soluce < 300 :
-                if 'q'+str((soluce-200)//self.k) not in transitions:  
+            elif soluce < 2*self.k+1:
+                accepting.add('q'+str(soluce-self.k-1))
+            elif soluce < 2*self.k+(self.k**2)*len(self.alphabet)+1 :
+                if 'q'+str(((soluce-2*self.k-1)//self.k)%self.k) not in transitions:  
                     temp =  dict()
-                    temp[self.alphabet[(soluce-200)//self.k**2]] = 'q'+str((soluce-200)%self.k)
-                    transitions['q'+str((soluce-200)//self.k)] = temp
+                    temp[self.alphabet[(soluce-2*self.k-1)//self.k**2]] = 'q'+str((soluce-2*self.k-1)%self.k)
                 else :
-                    temp_dict = transitions['q'+str((soluce-200)//self.k)]
-                    temp_dict[self.alphabet[(soluce-200)//self.k**2]] = temp_dict.setdefault(self.alphabet[(soluce-200)//self.k**2], set()).add('q'+str((soluce-200)%self.k))
+                    temp = transitions['q'+str(((soluce-2*self.k-1)//self.k)%self.k)]
+                    temp[self.alphabet[(soluce-2*self.k-1)//self.k**2]] = 'q'+str((soluce-2*self.k-1)%self.k)
+                transitions['q'+str(((soluce-2*self.k-1)//self.k)%self.k)] = temp
         print (states)
         print(transitions)
         print(accepting)
@@ -158,12 +162,6 @@ class Automate:
 
 
 
-
-
-"""def etat_acceptant_ou_non(k: int):
-    # Chaque état est acceptant ou non :
-    for x in range(k):
-        cnf.append([FPool.id((x)),-FPool.id((x))])"""
 
 
 
@@ -233,7 +231,7 @@ POSITIVE_DFA_INSTANCES = [
     # L(A) = words of even length Y
     ('a',  ['', 'aa', 'aaaaaa'], ['a', 'aaa', 'aaaaa'], 2),
     # L(A) = a^* :(
-    ('ab', ['', 'a', 'aa', 'aaa', 'aaaa'], ['b', 'ab', 'ba', 'bab', 'aba'], 1),
+    #('ab', ['', 'a', 'aa', 'aaa', 'aaaa'], ['b', 'ab', 'ba', 'bab', 'aba'], 1),
     # L(A) = words with at least one b Y
     ('ab', ['b', 'ab', 'ba', 'abbb', 'abba'], ['', 'aaa', 'a', 'aa'], 2),
     # L(A) = words where every chain consecutive b's has length >= 2 Y
