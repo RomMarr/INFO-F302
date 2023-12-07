@@ -24,40 +24,61 @@ def gen_aut(alphabet: str, pos: list[str], neg: list[str], k: int) -> DFA:
     # neg : N (ensemble des mots non-acceptant)
     
     # existance état initial :
-    cnf.append([etatPool.id(0)])
+    cnf.append([etatPool.id((0))])
 
     # Transition valide : 
     for i in alphabet:
         for x in range(k):  # x = transition initiale
             for y in range(k):  # y  = transition finale
-                cnf.append([-transiPool.id(x,y,i), etatPool.id(y)]) 
+                cnf.append([-transiPool.id((x,y,i)), etatPool.id((y))]) 
 
     # Tout mot commence à 0 :
     for mot in (pos + neg):
-        cnf.append([execPool.id(0,mot[0],mot)]) 
+        if mot != '' :
+            cnf.append([execPool.id((0,mot[0],mot))]) 
 
-    # Lien entre chemin et transition :
-    for x in range(k):  # x = transition initiale
-        for y in range(k):  # y  = transition finale
-            for mot in (pos + neg):
-                for lettre in len(mot):
-                    cnf.append([-execPool.id(x, lettre, mot), -execPool.id(y, lettre+1, mot), -transiPool.id(x,y,mot[lettre])])
+    # # Lien entre chemin et transition :
+    # for x in range(k):  # x = transition initiale
+    #     for y in range(k):  # y  = transition finale
+    #         for mot in (pos + neg):
+    #             for indiceLettre in range(len(mot)):
+    #                 cnf.append([-execPool.id((x, indiceLettre, mot)), -execPool.id((y, indiceLettre+1, mot)), -transiPool.id((x,y,mot[indiceLettre]))])
 
-    # Un seul chemin possible :
-    for x in range(k):  # x = transition initiale
-        for y in range(k):  # y  = transition finale 1 
-            for z in range(k):  # y  = transition finale 2
-                if z != y:
-                    for lettre in alphabet:
-                        cnf.append([-transiPool(x,y,lettre), -transiPool(x, z, lettre)])
+    # # # Un seul chemin possible :
+    # for x in range(k):  # x = transition initiale
+    #     for y in range(k):  # y  = transition finale 1 
+    #         for z in range(k):  # y  = transition finale 2
+    #             if z != y:
+    #                 for lettre in alphabet:
+    #                     cnf.append([-transiPool.id((x,y,lettre)), -transiPool.id((x, z, lettre))])
 
-    # Exécution finie sur état acceptant :
-    for x in range(k):  # x = transition initiale
-        for y in range(k):  # y  = transition finale
-            for w in pos:
-                cnf.append([-execPool()])
+    # # Exécution finie sur état acceptant :
+    # for x in range(k):  # x = transition initiale
+    #     for y in range(k):  # y  = transition finale
+    #         for w in pos:
+    #             if w != '' :
+    #                 cnf.append([-execPool.id((x,w[-1],w)),-transiPool.id((x,y,w[-1])),FPool.id((y))])
 
+    # # Exécution finie sur état non-acceptant :
+    # for x in range(k):  # x = transition initiale
+    #     for y in range(k):  # y  = transition finale
+    #         for w in neg:
+    #             if w != '' :
+    #                 cnf.append([-execPool.id((x,w[-1],w)),-transiPool.id((x,y,w[-1])),-FPool.id((y))])
+    
+    print(cnf.clauses)
+    
+    
+    s = Minisat22(use_timer=True) # pour utiliser le solveur MiniSAT
+    # s = Glucose4(use_timer=True) # pour utiliser le solveur Glucose
+    s.append_formula(cnf.clauses, no_return=False)
 
+    print("Resolution...")
+    resultat = s.solve()
+    print("Satisfaisable : " + str(resultat))
+    print("Temps de resolution : " + '{0:.2f}s'.format(s.time()))
+    interpretation = s.get_model()
+    print(interpretation)
 
 
 
@@ -105,4 +126,24 @@ def main():
     test_autn()
 
 if __name__ == '__main__':
-    main()
+    #main()
+    gen_aut('a',['a'],['aa'], 2)
+
+
+POSITIVE_DFA_INSTANCES = [
+    # L(A) = words of even length
+    ('a',  ['', 'aa', 'aaaaaa'], ['a', 'aaa', 'aaaaa'], 2),
+    # L(A) = a^*
+    ('ab', ['', 'a', 'aa', 'aaa', 'aaaa'], ['b', 'ab', 'ba', 'bab', 'aba'], 1),
+    # L(A) = words with at least one b
+    ('ab', ['b', 'ab', 'ba', 'abbb', 'abba'], ['', 'aaa', 'a', 'aa'], 2),
+    # L(A) = words where every chain consecutive b's has length >= 2
+    ('ab', ['', 'aa', 'aaaa', 'a', 'abb', 'bb', 'abba', 'bbbb', 'bbba', 'abbb'],
+           ['b', 'aba', 'ba', 'ab', 'abbab', 'bbabbab', 'babba'], 3),
+    # L(A) = {aa, ab, ba}
+    ('ab', ['aa', 'ab', 'ba'], ['', 'a', 'b', 'bb', 'aaa', 'aba', 'bba'], 4),
+    # L(A) = a^+ @ a^+ . a^+
+    ('a@.', ['a@a.a', 'aa@a.a'],
+            ['', '.', '..a', '.a', '@', '@.', '@.a', '@a', '@a.', '@a.a', '@aa', 'a', 'a.', 'a.a', 'a@',
+            'a@.', 'a@.a', 'a@a', 'a@a.', 'a@aa', 'aa', 'aa.', 'aa.a', 'aaa'], 6),
+]
