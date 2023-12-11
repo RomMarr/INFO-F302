@@ -145,7 +145,7 @@ POSITIVE_DFA_INSTANCES = [
     # L(A) = words of even length
     ('a',  ['', 'aa', 'aaaaaa'], ['a', 'aaa', 'aaaaa'], 2),
     # L(A) = a^*
-    #('ab', ['', 'a', 'aa', 'aaa', 'aaaa'], ['b', 'ab', 'ba', 'bab', 'aba'], 1),
+    ('ab', ['', 'a', 'aa', 'aaa', 'aaaa'], ['b', 'ab', 'ba', 'bab', 'aba'], 1),
     # L(A) = words with at least one b
     ('ab', ['b', 'ab', 'ba', 'abbb', 'abba'], ['', 'aaa', 'a', 'aa'], 2),
     # L(A) = words where every chain consecutive b's has length >= 2

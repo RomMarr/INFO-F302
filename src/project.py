@@ -19,18 +19,23 @@ from pysat.formula import CNF, CNFPlus, IDPool
 
 
 class Automate:
-    def __init__(self, alphabet: str, pos: list[str], neg: list[str], k: int):
+    def __init__(self, alphabet: str, pos: list[str], neg: list[str], k: int, ell = -1):
         # Variables
         self.etatPool = IDPool(start_from=1) 
         self.FPool = IDPool(start_from=k+1) 
         self.transiPool = IDPool(start_from=2*k+1) 
         self.execPool = IDPool(start_from=2*k+(k**2)*len(alphabet)+1) 
-        self.cnf = CNF()  # construction d'un objet formule en forme normale conjonctive (Conjunctive Normal Form)
+        self.etatFinal = IDPool(start_from= 10000000)
+        if ell == -1 :
+            self.cnf = CNF()  # construction d'un objet formule en forme normale conjonctive (Conjunctive Normal Form)
+        else:
+            self.cnf = CNFPlus()
         self.alphabet = alphabet
         self.pos = pos
         self.neg = neg
         self.k = k
-        print(self.k)
+        self.ell = ell
+        self.interpretation_filtree = None
 
 
     # Fonctions de création des clauses :
@@ -48,8 +53,7 @@ class Automate:
     def mot_commence_0(self):
         # Tout mot commence à 0 :
         for mot in (self.pos + self.neg):
-            if mot != '' :
-                self.cnf.append([self.execPool.id((0,0,mot))]) 
+            self.cnf.append([self.execPool.id((0,0,mot))]) 
 
     def exec_finie_etat_non_acceptant(self):
         # Exécution finie sur état non-acceptant :
@@ -59,6 +63,8 @@ class Automate:
                     if w != '' :
                         lettre = w[-1]
                         self.cnf.append([-self.execPool.id((x,len(w)-1,w)),-self.transiPool.id((x,y,lettre)),-self.FPool.id((y))])
+                    else :
+                        self.cnf.append([-self.FPool.id((0))])
 
     def exec_finie_etat_acceptant(self):
         # Exécution finie sur état acceptant :
@@ -68,15 +74,17 @@ class Automate:
                     if w != '' :
                         lettre = w[-1]
                         self.cnf.append([-self.execPool.id((x,len(w)-1,w)),-self.transiPool.id((x,y,lettre)),self.FPool.id((y))])
+
                     
     def existe_1_chemin_mots_acceptants(self):
         # Il faut qu'il existe un chemin pour les mots acceptants :
-        for mot in (self.pos+self.neg):
+        for mot in (self.pos):
             for indiceLettre in range(len(mot)):
                 d = []
                 for x in range(self.k):
                     d.append(self.execPool.id((x, indiceLettre, mot)))
-                self.cnf.append(d)                
+                self.cnf.append(d)    
+            
                 
     def un_chemin_possible(self):
         # # Un seul chemin possible :
@@ -118,55 +126,144 @@ class Automate:
                         lettre = mot[indiceLettre]
                         self.cnf.append([-self.transiPool.id((x,y,lettre)), -self.execPool.id((x,indiceLettre,mot)), self.execPool.id((y,indiceLettre+1,mot))])
 
+    def au_moins_une_transi(self):
+        d = []
+        for x in range(self.k):
+            for y in range(self.k):
+                for lettre in self.alphabet:
+                    d.append(self.transiPool.id((x,y,lettre)))
+        self.cnf.append(d)
+    
+    def automate_complet(self):
+        for sommet_depart in range(self.k):
+            for lettre in (self.alphabet) :
+                d=[]
+                for sommet_arive in range(self.k) :
+                    d.append(self.transiPool.id((sommet_depart,sommet_arive,lettre)))
+                self.cnf.append(d)
 
-    # Fonction de création d'un DFA à partir des clauses : 
-    def create_dfa(self) -> DFA:
+    def automate_reversible(self):
+        for y in range(self.k):  # sommet d'arrivé
+            for lettre in (self.alphabet):
+                for x1 in range(self.k) :  # sommet de départ 1
+                    for x2 in range(self.k) :  # sommet de départ 2
+                        if x1 != x2 :
+                            self.cnf.append([-self.transiPool.id((x1,y,lettre)), -self.transiPool.id((x2,y,lettre))])
+    
+    def au_plus_ell_etats_acceptant(self):
+        d = []
+        for x in range(self.k) : # sommet           
+            d.append(self.FPool.id((x)))
+        atmost = [d,self.ell]
+        self.cnf.append(atmost, is_atmost=True)
+
+    
+    def etat_final(self):
+        for mot in self.pos:
+            for x in range(self.k):
+                for y in range(self.k):
+                    lettre = mot[-1]
+                    self.cnf.append(-self.execPool.id((x,len(mot)-1,mot)),-self.transiPool.id((x,y,lettre)),self.etatFinal.id((y,mot)))
+
+    def au_moins_une_exec_acceptante(self):
+        # Exécution finie sur état acceptant :
+        for mot in self.pos:
+            d = []
+            if mot != '' :
+                for x in range(self.k):  # x  = etat initiale
+                    d.append(-self.etatFinal.id((x,mot)))
+                    d.append(self.FPool.id((x)))                   
+            else :
+                d.append(self.FPool.id((0)))
+            self.cnf.append(d)    
+
+
+    def solve_aut(self):
         s = Minisat22(use_timer=True) # pour utiliser le solveur MiniSAT
-        # s = Glucose4(use_timer=True) # pour utiliser le solveur Glucose
+        #s = Glucose4(use_timer=True) # pour utiliser le solveur Glucose
         s.append_formula(self.cnf.clauses, no_return=False)
-
-        #print("Resolution...")
+        # s.append_formula(self.cnf.atmosts, no_return= False)
         resultat = s.solve()
-        #print("Satisfaisable : " + str(resultat))
-        #print("Temps de resolution : " + '{0:.2f}s'.format(s.time()))
         interpretation = s.get_model()
         if resultat :
-            interpretation_filtree = list(filter(lambda x : x >=0, interpretation))
-            #print(interpretation_filtree)
-        
+            self.interpretation_filtree = list(filter(lambda x : x >=0, interpretation))
+        self.interpretation_filtree
+        return resultat
+    
+    def solve_autcard(self) :
+        s = Minicard(use_timer=True)  # pour utiliser le solveur Minicard (seulement pour la question 6)
+        s.append_formula(self.cnf.clauses, no_return=False)
+        s.append_formula(self.cnf.atmosts, no_return= False)
+        resultat = s.solve()
+        interpretation = s.get_model()
+        if resultat :
+            self.interpretation_filtree = list(filter(lambda x : x >=0, interpretation))
+        self.interpretation_filtree
+        return resultat
+
+
+    # Fonction de création d'automates (DFA et NFA) à partir des clauses : 
+    def create_dfa(self, resultat) -> DFA:
         states = set()
         transitions = dict()
         accepting = set()
         if not resultat:
             return None
-        print (interpretation_filtree)
-        for soluce in interpretation_filtree :
-            if soluce < self.k+1:
-                print(self.k)
-                print(soluce)
+        bornEtat = self.k+1
+        bornF = 2*self.k+1
+        bornTransi = 2*self.k+(self.k**2)*len(self.alphabet)+1
+        for soluce in self.interpretation_filtree :
+            if soluce < bornEtat:
                 states.add('q'+str(soluce-1))
-            elif soluce < 2*self.k+1:
+            elif soluce < bornF:
                 accepting.add('q'+str(soluce-self.k-1))
-            elif soluce < 2*self.k+(self.k**2)*len(self.alphabet)+1 :
-                if 'q'+str(((soluce-2*self.k-1)//self.k)%self.k) not in transitions:  
+            elif soluce < bornTransi :
+                sommetDepart = 'q'+str(((soluce-2*self.k-1)//self.k)%self.k)
+                lettre = self.alphabet[(soluce-2*self.k-1)//self.k**2]
+                sommetArive = 'q'+str((soluce-2*self.k-1)%self.k)
+                if sommetDepart not in transitions:  
                     temp =  dict()
-                    temp[self.alphabet[(soluce-2*self.k-1)//self.k**2]] = 'q'+str((soluce-2*self.k-1)%self.k)
+                    temp[lettre] = sommetArive
                 else :
-                    temp = transitions['q'+str(((soluce-2*self.k-1)//self.k)%self.k)]
-                    temp[self.alphabet[(soluce-2*self.k-1)//self.k**2]] = 'q'+str((soluce-2*self.k-1)%self.k)
-                transitions['q'+str(((soluce-2*self.k-1)//self.k)%self.k)] = temp
+                    temp = transitions[sommetDepart]
+                    temp[lettre] = sommetArive
+                transitions[sommetDepart] = temp
         print (states)
         print(transitions)
         print(accepting)
-        return DFA(states=states, input_symbols=set(self.alphabet), transitions=transitions, initial_state="q0", final_states=accepting)
+        return DFA(states=states, input_symbols=set(self.alphabet), transitions =transitions, initial_state ="q0", final_states =accepting, allow_partial=True)
 
-
-
-
-
-
-
-
+    def create_nfa(self, resultat):
+        states = set()
+        transitions = dict()
+        accepting = set()
+        print(self.interpretation_filtree)
+        if not resultat:
+            return None
+        bornEtat = self.k+1
+        bornF = 2*self.k+1
+        bornTransi = 2*self.k+(self.k**2)*len(self.alphabet)+1
+        for soluce in self.interpretation_filtree :
+            if soluce < bornEtat:
+                states.add('q'+str(soluce-1))
+            elif soluce < bornF:
+                accepting.add('q'+str(soluce-self.k-1))
+            elif soluce < bornTransi :
+                sommetDepart = 'q'+str(((soluce-2*self.k-1)//self.k)%self.k)
+                lettre = self.alphabet[(soluce-2*self.k-1)//self.k**2]
+                sommetArive = 'q'+str((soluce-2*self.k-1)%self.k)
+                if sommetDepart not in transitions:  
+                    temp =  dict()
+                    temp[lettre] = {sommetArive}
+                else :
+                    temp = transitions[sommetDepart]
+                    temp[lettre] = temp.get(lettre,set())
+                    temp[lettre].add(sommetArive)
+                transitions[sommetDepart] = temp
+        print(states)
+        print(transitions)
+        print(accepting)
+        return NFA(states=states, input_symbols=set(self.alphabet), transitions =transitions, initial_state ="q0", final_states =accepting)
 
 # Q2
 def gen_aut(alphabet: str, pos: list[str], neg: list[str], k: int) -> DFA:
@@ -181,44 +278,101 @@ def gen_aut(alphabet: str, pos: list[str], neg: list[str], k: int) -> DFA:
     a.existe_1_chemin_mots_acceptants()  # Il faut qu'il existe un chemin pour les mots acceptants
     a.exec_finie_etat_acceptant()  # Exécution finie sur état acceptant
     a.exec_finie_etat_non_acceptant()  # Exécution finie sur état non-acceptant
-
-    #print(cnf.clauses)
-    #show_automaton(create_dfa(alphabet, k))
-    return a.create_dfa()
+    resultat = a.solve_aut()
+    return a.create_dfa(resultat)
     
-
 # Q3
 def gen_minaut(alphabet: str, pos: list[str], neg: list[str]) -> DFA:
-    # À COMPLÉTER
-    pass
+    k = 1
+    resultat = False
+    
+    while not resultat :
+        a = Automate(alphabet, pos, neg, k)
+        a.existance_etat_initial()  # existance état initial
+        a.transition_valide()  # Transition valide  
+        a.mot_commence_0()  # Tout mot commence à 0
+        a.lien_chemin_transition()  # Lien entre chemin et transition
+        a.chemin_implique_transition()   # Chemin implique transition
+        a.transition_implique_chemin()  # Transition implique chemin
+        a.un_chemin_possible()  # Un seul chemin possible
+        a.existe_1_chemin_mots_acceptants()  # Il faut qu'il existe un chemin pour les mots acceptants
+        a.exec_finie_etat_acceptant()  # Exécution finie sur état acceptant
+        a.exec_finie_etat_non_acceptant()  # Exécution finie sur état non-acceptant
+        a.au_moins_une_transi() # Pour ne pas avoir d'erreur lors de la création de l'automate
+        resultat = a.solve_aut()
+        k+=1
+    return a.create_dfa(resultat)
 
 # Q4
 def gen_autc(alphabet: str, pos: list[str], neg: list[str], k: int) -> DFA:
-    # À COMPLÉTER
-    pass
+    a = Automate(alphabet, pos, neg, k)
+    a.existance_etat_initial()  # existance état initial
+    a.transition_valide()  # Transition valide  
+    a.mot_commence_0()  # Tout mot commence à 0
+    a.lien_chemin_transition()  # Lien entre chemin et transition
+    a.chemin_implique_transition()   # Chemin implique transition
+    a.transition_implique_chemin()  # Transition implique chemin
+    a.un_chemin_possible()  # Un seul chemin possible
+    a.exec_finie_etat_acceptant()  # Exécution finie sur état acceptant
+    a.exec_finie_etat_non_acceptant()  # Exécution finie sur état non-acceptant
+    a.automate_complet()
+    resultat = a.solve_aut()
+    return a.create_dfa(resultat)
 
 # Q5
 def gen_autr(alphabet: str, pos: list[str], neg: list[str], k: int) -> DFA:
-    # À COMPLÉTER
-    pass
+    a = Automate(alphabet, pos, neg, k)
+    a.existance_etat_initial()  # existance état initial
+    a.transition_valide()  # Transition valide  
+    a.mot_commence_0()  # Tout mot commence à 0
+    a.lien_chemin_transition()  # Lien entre chemin et transition
+    a.chemin_implique_transition()   # Chemin implique transition
+    a.transition_implique_chemin()  # Transition implique chemin
+    a.un_chemin_possible()  # Un seul chemin possible
+    a.exec_finie_etat_acceptant()  # Exécution finie sur état acceptant
+    a.exec_finie_etat_non_acceptant()  # Exécution finie sur état non-acceptant
+    a.automate_reversible()
+    resultat = a.solve_aut() 
+    return a.create_dfa(resultat)
 
 # Q6
 def gen_autcard(alphabet: str, pos: list[str], neg: list[str], k: int, ell: int) -> DFA:
-    # À COMPLÉTER
-    pass
+    a = Automate(alphabet, pos, neg, k, ell)
+    a.existance_etat_initial()  # existance état initial
+    a.transition_valide()  # Transition valide  
+    a.mot_commence_0()  # Tout mot commence à 0
+    a.lien_chemin_transition()  # Lien entre chemin et transition
+    a.chemin_implique_transition()   # Chemin implique transition
+    a.transition_implique_chemin()  # Transition implique chemin
+    a.un_chemin_possible()  # Un seul chemin possible
+    a.exec_finie_etat_acceptant()  # Exécution finie sur état acceptant
+    a.exec_finie_etat_non_acceptant()  # Exécution finie sur état non-acceptant
+    a.au_plus_ell_etats_acceptant()
+    resultat = a.solve_autcard() 
+    return a.create_dfa(resultat)
 
 # Q7
 def gen_autn(alphabet: str, pos: list[str], neg: list[str], k: int) -> NFA:
-    # À COMPLÉTER
-    pass
+    a = Automate(alphabet, pos, neg, k)
+    a.existance_etat_initial()  # existance état initial
+    a.mot_commence_0()  # Tout mot commence à 0
+    a.transition_valide()
+    a.un_chemin_possible()
+    a.lien_chemin_transition()  # Lien entre chemin et transition
+    a.chemin_implique_transition()   # Chemin implique transition
+    a.transition_implique_chemin()  # Transition implique chemin
+    a.au_moins_une_exec_acceptante()
+    a.exec_finie_etat_non_acceptant()  # Exécution finie sur état non-acceptant
+    resultat = a.solve_aut() 
+    return a.create_nfa(resultat)
 
 def main():
-    test_aut()
+    #test_aut()
     #test_minaut()
     #test_autc()
     #test_autr()
     #test_autcard()
-    #test_autn()
+    test_autn()
 
 if __name__ == '__main__':
     main()
@@ -226,21 +380,3 @@ if __name__ == '__main__':
         # print(elem)
         # gen_aut(elem[0],elem[1],elem[2],elem[3])
 
-
-POSITIVE_DFA_INSTANCES = [
-    # L(A) = words of even length Y
-    ('a',  ['', 'aa', 'aaaaaa'], ['a', 'aaa', 'aaaaa'], 2),
-    # L(A) = a^* :(
-    #('ab', ['', 'a', 'aa', 'aaa', 'aaaa'], ['b', 'ab', 'ba', 'bab', 'aba'], 1),
-    # L(A) = words with at least one b Y
-    ('ab', ['b', 'ab', 'ba', 'abbb', 'abba'], ['', 'aaa', 'a', 'aa'], 2),
-    # L(A) = words where every chain consecutive b's has length >= 2 Y
-    ('ab', ['', 'aa', 'aaaa', 'a', 'abb', 'bb', 'abba', 'bbbb', 'bbba', 'abbb'],
-           ['b', 'aba', 'ba', 'ab', 'abbab', 'bbabbab', 'babba'], 3),
-    # L(A) = {aa, ab, ba}
-    ('ab', ['aa', 'ab', 'ba'], ['', 'a', 'b', 'bb', 'aaa', 'aba', 'bba'], 4),
-    # L(A) = a^+ @ a^+ . a^+
-    ('a@.', ['a@a.a', 'aa@a.a'],
-            ['', '.', '..a', '.a', '@', '@.', '@.a', '@a', '@a.', '@a.a', '@aa', 'a', 'a.', 'a.a', 'a@',
-            'a@.', 'a@.a', 'a@a', 'a@a.', 'a@aa', 'aa', 'aa.', 'aa.a', 'aaa'], 6),
-]
