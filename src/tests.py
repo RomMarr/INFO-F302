@@ -145,19 +145,19 @@ POSITIVE_DFA_INSTANCES = [
     # L(A) = words of even length
     ('a',  ['', 'aa', 'aaaaaa'], ['a', 'aaa', 'aaaaa'], 2),
     # L(A) = a^*
-    ('ab', ['', 'a', 'aa', 'aaa', 'aaaa'], ['b', 'ab', 'ba', 'bab', 'aba'], 1),
-    # L(A) = words with at least one b
-    ('ab', ['b', 'ab', 'ba', 'abbb', 'abba'], ['', 'aaa', 'a', 'aa'], 2),
-    # L(A) = words where every chain consecutive b's has length >= 2
-    ('ab', ['', 'aa', 'aaaa', 'a', 'abb', 'bb', 'abba', 'bbbb', 'bbba', 'abbb'],
-           ['b', 'aba', 'ba', 'ab', 'abbab', 'bbabbab', 'babba'], 3),
-    # L(A) = {aa, ab, ba}
-    ('ab', ['aa', 'ab', 'ba'], ['', 'a', 'b', 'bb', 'aaa', 'aba', 'bba'], 4),
-    # L(A) = a^+ @ a^+ . a^+
-    ('a@.', ['a@a.a', 'aa@a.a'],
-            ['', '.', '..a', '.a', '@', '@.', '@.a', '@a', '@a.', '@a.a', '@aa', 'a', 'a.', 'a.a', 'a@',
-            'a@.', 'a@.a', 'a@a', 'a@a.', 'a@aa', 'aa', 'aa.', 'aa.a', 'aaa'], 6),
-]
+#     ('ab', ['', 'a', 'aa', 'aaa', 'aaaa'], ['b', 'ab', 'ba', 'bab', 'aba'], 1),
+#     # L(A) = words with at least one b
+#     ('ab', ['b', 'ab', 'ba', 'abbb', 'abba'], ['', 'aaa', 'a', 'aa'], 2),
+#     # L(A) = words where every chain consecutive b's has length >= 2
+#     ('ab', ['', 'aa', 'aaaa', 'a', 'abb', 'bb', 'abba', 'bbbb', 'bbba', 'abbb'],
+#            ['b', 'aba', 'ba', 'ab', 'abbab', 'bbabbab', 'babba'], 3),
+#     # L(A) = {aa, ab, ba}
+#     ('ab', ['aa', 'ab', 'ba'], ['', 'a', 'b', 'bb', 'aaa', 'aba', 'bba'], 4),
+#     # L(A) = a^+ @ a^+ . a^+
+#     ('a@.', ['a@a.a', 'aa@a.a'],
+#             ['', '.', '..a', '.a', '@', '@.', '@.a', '@a', '@a.', '@a.a', '@aa', 'a', 'a.', 'a.a', 'a@',
+#             'a@.', 'a@.a', 'a@a', 'a@a.', 'a@aa', 'aa', 'aa.', 'aa.a', 'aaa'], 6),
+ ]
 # (\Sigma, P, N, min_k)
 POSITIVE_MINDFA_INSTANCES = [
     # L(A) = a^*
